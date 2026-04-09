@@ -38,11 +38,12 @@
   "author": "Rayan Castilla",
   "license": "MIT",
   "dependencies": {
-    "just-bash": "^2.14.0",
-    "commander": "^13.0.0",
     "chalk": "^5.4.0",
     "chromadb": "^1.9.0",
-    "glob": "^11.0.0"
+    "chromadb-default-embed": "^2.14.0",
+    "commander": "^13.0.0",
+    "glob": "^11.0.0",
+    "just-bash": "^2.14.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
