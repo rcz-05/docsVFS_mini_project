@@ -1,0 +1,58 @@
+{
+  "name": "docsvfs",
+  "version": "0.1.0",
+  "description": "A ChromaFS-inspired virtual filesystem for documentation. Give AI agents a Unix shell over your docs.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "docsvfs": "./dist/cli/main.js"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./tool": {
+      "import": "./dist/tool.js",
+      "types": "./dist/tool.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "postbuild": "chmod +x dist/cli/main.js",
+    "dev": "tsc --watch",
+    "start": "node dist/cli/main.js",
+    "prepublishOnly": "npm run build",
+    "lint": "tsc --noEmit"
+  },
+  "keywords": [
+    "virtual-filesystem",
+    "chromafs",
+    "just-bash",
+    "ai-agents",
+    "documentation",
+    "cli",
+    "rag"
+  ],
+  "author": "Rayan Castilla",
+  "license": "MIT",
+  "dependencies": {
+    "just-bash": "^2.14.0",
+    "commander": "^13.0.0",
+    "chalk": "^5.4.0",
+    "chromadb": "^1.9.0",
+    "glob": "^11.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "dist",
+    "demo-docs"
+  ]
+}
