@@ -46,7 +46,9 @@
     "just-bash": "^2.14.0"
   },
   "devDependencies": {
+    "@ai-sdk/openai": "^3.0.52",
     "@types/node": "^22.0.0",
+    "ai": "^6.0.156",
     "typescript": "^5.7.0"
   },
   "engines": {
