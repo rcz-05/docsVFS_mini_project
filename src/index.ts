@@ -25,3 +25,7 @@ export {
 } from "./chroma/chroma-backend.js";
 export type { DocChunk } from "./chroma/chroma-backend.js";
 export { createDocsVFS, type DocsVFSOptions } from "./create.js";
+export { WritableFileSystem } from "./memory/writable-fs.js";
+export { FreshMap } from "./memory/fresh-map.js";
+export { setupMemory } from "./memory/setup.js";
+export type { Provenance, NodeRow } from "./memory/schema.js";

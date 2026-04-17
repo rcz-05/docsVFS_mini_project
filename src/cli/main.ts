@@ -19,6 +19,8 @@ function parseArgs(argv: string[]) {
   let chroma = false;
   let chromaUrl = "http://localhost:8000";
   let noCache = false;
+  let memory = false;
+  let memoryDbUrl: string | undefined;
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -28,6 +30,11 @@ function parseArgs(argv: string[]) {
       chromaUrl = args[++i];
     } else if (arg === "--no-cache") {
       noCache = true;
+    } else if (arg === "--memory") {
+      memory = true;
+    } else if (arg === "--memory-db" && i + 1 < args.length) {
+      memoryDbUrl = args[++i];
+      memory = true;
     } else if (arg === "--help" || arg === "-h") {
       printHelp();
       process.exit(0);
@@ -39,7 +46,7 @@ function parseArgs(argv: string[]) {
     }
   }
 
-  return { rootDir, chroma, chromaUrl, noCache };
+  return { rootDir, chroma, chromaUrl, noCache, memory, memoryDbUrl };
 }
 
 function printHelp() {
@@ -53,6 +60,8 @@ USAGE
 OPTIONS
   --chroma          Enable Chroma integration (requires running Chroma server)
   --chroma-url URL  Chroma server URL (default: http://localhost:8000)
+  --memory          Mount writable /memory and /workspace beside /docs
+  --memory-db URL   libSQL/Turso DB URL (default: file:<root>/.docsvfs.db)
   --no-cache        Skip disk cache, always rescan
   -h, --help        Show this help
   -v, --version     Show version
@@ -75,7 +84,7 @@ COMMANDS (once inside the REPL)
 // ─── REPL ──────────────────────────────────────────────────────
 
 async function main() {
-  const { rootDir, chroma, chromaUrl, noCache } = parseArgs(process.argv);
+  const { rootDir, chroma, chromaUrl, noCache, memory, memoryDbUrl } = parseArgs(process.argv);
 
   console.log(`\x1b[36m📁 docsvfs\x1b[0m — Virtual filesystem for documentation`);
   console.log(`   Scanning: \x1b[33m${rootDir}\x1b[0m`);
@@ -86,6 +95,8 @@ async function main() {
       chroma,
       chromaUrl,
       noCache,
+      memory,
+      memoryDbUrl,
     });
 
     console.log(
@@ -99,17 +110,27 @@ async function main() {
       `   Boot time: \x1b[32m${vfs.stats.bootTimeMs}ms\x1b[0m` +
       (chroma ? " (with Chroma)" : "")
     );
-    console.log(`   Mode: \x1b[31mread-only\x1b[0m (EROFS on writes)\n`);
+    if (memory && vfs.stats.memoryMounts) {
+      console.log(
+        `   Mounts: \x1b[32m/docs\x1b[0m (read-only) + ` +
+        vfs.stats.memoryMounts.map((m) => `\x1b[32m${m}\x1b[0m`).join(" ") +
+        ` (writable)`
+      );
+      console.log(`   Session: \x1b[2m${vfs.memory?.sessionId}\x1b[0m\n`);
+    } else {
+      console.log(`   Mode: \x1b[31mread-only\x1b[0m (EROFS on writes)\n`);
+    }
     console.log(`Type \x1b[33mexit\x1b[0m to quit, or any bash command to explore.\n`);
 
+    const startCwd = memory ? "/docs" : "/";
     const rl = createInterface({
       input: process.stdin,
       output: process.stdout,
-      prompt: "\x1b[36mdocsvfs\x1b[0m:\x1b[33m/\x1b[0m$ ",
+      prompt: `\x1b[36mdocsvfs\x1b[0m:\x1b[33m${startCwd}\x1b[0m$ `,
       terminal: true,
     });
 
-    let cwd = "/";
+    let cwd = startCwd;
 
     const updatePrompt = () => {
       rl.setPrompt(`\x1b[36mdocsvfs\x1b[0m:\x1b[33m${cwd}\x1b[0m$ `);
@@ -127,6 +148,7 @@ async function main() {
 
       if (cmd === "exit" || cmd === "quit") {
         console.log("Goodbye!");
+        await vfs.close();
         rl.close();
         process.exit(0);
       }

@@ -4,11 +4,12 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { Bash } from "just-bash";
+import { Bash, MountableFs, InMemoryFs } from "just-bash";
 import { DocsFileSystem } from "./fs/docs-fs.js";
 import { buildPathTree } from "./fs/path-tree.js";
 import { loadCachedTree, saveCachedTree } from "./cache/disk-cache.js";
 import { InMemorySearchIndex, ChromaSearchIndex } from "./chroma/chroma-backend.js";
+import { setupMemory, type MemorySetup } from "./memory/setup.js";
 
 export interface DocsVFSOptions {
   /** Path to the documentation root folder */
@@ -23,15 +24,27 @@ export interface DocsVFSOptions {
   noCache?: boolean;
   /** Maximum content cache size */
   cacheSize?: number;
+  /**
+   * Enable writable memory mounts: /memory (persistent) and /workspace (24h TTL).
+   * When on, the doc root moves from / to /docs and the writable mounts sit
+   * beside it in the same virtual namespace.
+   */
+  memory?: boolean;
+  /** Override the libSQL/Turso DB URL (default: file:<rootDir>/.docsvfs.db) */
+  memoryDbUrl?: string;
+  /** Session id tagged on every write's provenance (default: random UUID) */
+  sessionId?: string;
 }
 
 export interface DocsVFSInstance {
   /** The just-bash shell instance */
   bash: InstanceType<typeof Bash>;
-  /** The virtual filesystem */
+  /** The virtual filesystem (DocsFileSystem, or MountableFs when memory is on) */
   fs: DocsFileSystem;
   /** Search index (in-memory or Chroma) */
   searchIndex: InMemorySearchIndex | ChromaSearchIndex;
+  /** Memory setup when enabled (libSQL client + writable mounts) */
+  memory?: MemorySetup;
   /** Execute a bash command */
   exec: (command: string) => Promise<{ stdout: string; stderr: string; exitCode: number }>;
   /** Summary stats */
@@ -40,7 +53,10 @@ export interface DocsVFSInstance {
     dirCount: number;
     chunkCount: number;
     bootTimeMs: number;
+    memoryMounts?: string[];
   };
+  /** Release resources (closes libSQL connection when memory is on) */
+  close: () => Promise<void>;
 }
 
 /**
@@ -101,16 +117,38 @@ export async function createDocsVFS(
     chunkCount = searchIndex.size;
   }
 
-  // Step 4: Create the just-bash instance with our filesystem
+  // Step 4: If memory is enabled, wrap DocsFileSystem + writable mounts in a MountableFs.
+  let rootFs: DocsFileSystem | MountableFs = docsFs;
+  let memory: MemorySetup | undefined;
+  let initialCwd = "/";
+  const memoryMounts: string[] = [];
+
+  if (options.memory) {
+    memory = await setupMemory({
+      rootDir,
+      dbUrl: options.memoryDbUrl,
+      sessionId: options.sessionId,
+    });
+    const mountable = new MountableFs({ base: new InMemoryFs() });
+    mountable.mount("/docs", docsFs);
+    for (const { mountPoint, filesystem } of memory.mounts) {
+      mountable.mount(mountPoint, filesystem);
+      memoryMounts.push(mountPoint);
+    }
+    rootFs = mountable;
+    initialCwd = "/docs";
+  }
+
   const bash = new Bash({
-    fs: docsFs,
-    cwd: "/",
+    fs: rootFs,
+    cwd: initialCwd,
     env: {
       HOME: "/",
       USER: "docsvfs",
       TERM: "xterm-256color",
       DOCSVFS_ROOT: rootDir,
       DOCSVFS_FILES: String(pathTree.files.size),
+      ...(memory ? { DOCSVFS_SESSION: memory.sessionId } : {}),
     },
   });
 
@@ -120,6 +158,7 @@ export async function createDocsVFS(
     bash,
     fs: docsFs,
     searchIndex,
+    memory,
     exec: async (command: string) => {
       try {
         const result = await bash.exec(command);
@@ -141,6 +180,10 @@ export async function createDocsVFS(
       dirCount: pathTree.directories.size,
       chunkCount,
       bootTimeMs,
+      memoryMounts: memoryMounts.length ? memoryMounts : undefined,
+    },
+    close: async () => {
+      memory?.close();
     },
   };
 }

@@ -38,6 +38,7 @@
   "author": "Rayan Castilla",
   "license": "MIT",
   "dependencies": {
+    "@libsql/client": "^0.17.2",
     "chalk": "^5.4.0",
     "chromadb": "^1.9.0",
     "chromadb-default-embed": "^2.14.0",
