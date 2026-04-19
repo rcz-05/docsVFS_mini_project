@@ -19,7 +19,8 @@ ability to corrupt source documentation.
 - **Version**: 0.1.x, unreleased (source repo: <https://github.com/rcz-05/docsVFS_mini_project>)
 - **Branch**: work happens on `main` directly
 - **Phase 1** (shipped): read-only `/docs`, path_tree, optional Chroma semantic search
-- **Phase 2** (in progress): writable `/memory` and `/workspace` mounts with provenance, janitor, density command, async Chroma indexing for writable content
+- **Phase 2** (shipped): writable `/memory` and `/workspace` mounts with provenance, janitor, density command, async Chroma indexing for writable content
+- **Phase 3 Option A** (shipped): structured `remember(topic, content, { append?, note? })` AI SDK tool — slugifies topic into `/memory/<slug>.md`, tags provenance `source: "tool"` to differentiate tool-call writes from raw-bash agent writes. See `src/remember-tool.ts`, `scripts/smoke-remember.mjs`.
 
 ## Architecture at a glance
 
@@ -60,7 +61,8 @@ just-bash  ──────► │  /docs       → DocsFileSystem    │  (re
 | Async indexer (Phase 2.2) | `src/memory/async-indexer.ts` | Durable queue, background worker, upsert to Chroma |
 | Factory | `src/create.ts` | `createDocsVFS()` — wires everything together |
 | CLI | `src/cli/main.ts` | REPL + flag parsing |
-| Tool export | `src/tool.ts` | Vercel AI SDK tool wrapper |
+| Tool export | `src/tool.ts` | Vercel AI SDK tool wrapper (bash shell over docs) |
+| Remember tool (Phase 3) | `src/remember-tool.ts` | Vercel AI SDK `remember(topic, content, {append?, note?})` — structured write to /memory with `source: "tool"` provenance |
 
 ## Build + test
 
@@ -78,6 +80,7 @@ node scripts/smoke-memory.mjs           # 12-assertion round-trip on writable la
 node scripts/smoke-janitor.mjs          # Phase 2.1 coverage
 node scripts/smoke-density.mjs          # Phase 2.3 coverage
 node scripts/smoke-async-indexer.mjs    # Phase 2.2 (skips if Chroma down)
+node scripts/smoke-remember.mjs         # Phase 3 Option A coverage
 ```
 
 Every new feature lands with a matching smoke script. Run them before

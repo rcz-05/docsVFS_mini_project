@@ -88,6 +88,35 @@ const { text } = await generateText({
 
 The agent will autonomously run `tree`, `grep`, and `cat` to find the answer — just like a developer would.
 
+### Pairing with `remember()`
+
+When you boot DocsVFS with `memory: true`, pair `docsTool` with a structured
+`remember()` tool so the agent can pin durable notes into `/memory` without
+quoting bash strings. Tool-call writes are tagged `source: "tool"` so the
+janitor can later distinguish them from raw-bash writes.
+
+```typescript
+import { createDocsVFS } from "docsvfs";
+import { createDocsVFSTool } from "docsvfs/tool";
+import { createRememberTool } from "docsvfs/remember";
+
+const vfs = await createDocsVFS({ rootDir: "./docs", memory: true });
+const docs = await createDocsVFSTool({ rootDir: "./docs", memory: true });
+const remember = createRememberTool({ vfs });
+
+await generateText({
+  model: openai("gpt-4o"),
+  tools: { docs, remember },
+  prompt:
+    "Explore the docs and pin a one-paragraph summary of the Slurm setup " +
+    "under the topic 'slurm-primer'.",
+});
+
+// remember({ topic: "Slurm primer", content: "...", note?: "source query" })
+// writes /memory/slurm-primer.md and returns { ok, path, bytes, mode }.
+// Pass { append: true } to append instead of overwrite.
+```
+
 ## Chroma Mode
 
 For larger doc sets, enable Chroma for semantic search alongside keyword grep:

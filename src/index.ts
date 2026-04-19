@@ -29,3 +29,11 @@ export { WritableFileSystem } from "./memory/writable-fs.js";
 export { FreshMap } from "./memory/fresh-map.js";
 export { setupMemory } from "./memory/setup.js";
 export type { Provenance, NodeRow } from "./memory/schema.js";
+export {
+  createRememberTool,
+  slugifyTopic,
+  type RememberTool,
+  type RememberToolOptions,
+  type RememberArgs,
+  type RememberResult,
+} from "./remember-tool.js";

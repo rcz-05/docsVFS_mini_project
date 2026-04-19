@@ -16,6 +16,10 @@
     "./tool": {
       "import": "./dist/tool.js",
       "types": "./dist/tool.d.ts"
+    },
+    "./remember": {
+      "import": "./dist/remember-tool.js",
+      "types": "./dist/remember-tool.d.ts"
     }
   },
   "scripts": {

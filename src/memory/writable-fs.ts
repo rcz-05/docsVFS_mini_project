@@ -317,6 +317,20 @@ export class WritableFileSystem implements IFileSystem {
     content: FileContent,
     _options?: WriteFileOptions | BufferEncoding
   ): Promise<void> {
+    await this.writeFileAs(filePath, content, "agent");
+  }
+
+  /**
+   * Write a file with an explicit provenance source (and optional note).
+   * Used by structured tools (e.g. `remember()`) that want to distinguish
+   * tool-call writes from raw bash writes in the provenance trail.
+   */
+  async writeFileAs(
+    filePath: string,
+    content: FileContent,
+    source: Provenance["source"],
+    note?: string
+  ): Promise<void> {
     const p = this.normalize(filePath);
     if (p === "/") throw eisdir("write", filePath);
     await this.ensureParent(p, "write");
@@ -327,10 +341,9 @@ export class WritableFileSystem implements IFileSystem {
     const buf = typeof content === "string" ? new TextEncoder().encode(content) : content;
     const now = Date.now();
     const ttl = this.defaultTtlMs === null ? null : now + this.defaultTtlMs;
-    const provenance = JSON.stringify({
-      session_id: this.sessionId,
-      source: "agent",
-    } satisfies Provenance);
+    const provenanceObj: Provenance = { session_id: this.sessionId, source };
+    if (note !== undefined) provenanceObj.note = note;
+    const provenance = JSON.stringify(provenanceObj);
 
     await this.client.execute({
       sql: `INSERT INTO nodes (mount, path, parent, name, kind, content, size, mode, provenance, created_at, updated_at, ttl_expires_at)
@@ -366,6 +379,19 @@ export class WritableFileSystem implements IFileSystem {
     content: FileContent,
     options?: WriteFileOptions | BufferEncoding
   ): Promise<void> {
+    await this.appendFileAs(filePath, content, "agent", undefined, options);
+  }
+
+  /**
+   * Append to a file with an explicit provenance source (and optional note).
+   */
+  async appendFileAs(
+    filePath: string,
+    content: FileContent,
+    source: Provenance["source"],
+    note?: string,
+    _options?: WriteFileOptions | BufferEncoding
+  ): Promise<void> {
     const p = this.normalize(filePath);
     const existing = await this.fetchNode(p);
     const buf = typeof content === "string" ? new TextEncoder().encode(content) : content;
@@ -374,7 +400,7 @@ export class WritableFileSystem implements IFileSystem {
     const merged = new Uint8Array(prev.byteLength + buf.byteLength);
     merged.set(prev, 0);
     merged.set(buf, prev.byteLength);
-    await this.writeFile(filePath, merged, options);
+    await this.writeFileAs(filePath, merged, source, note);
   }
 
   async mkdir(dirPath: string, options?: MkdirOptions): Promise<void> {

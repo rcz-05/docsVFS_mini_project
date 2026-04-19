@@ -54,7 +54,7 @@ INSERT OR IGNORE INTO schema_meta (key, value) VALUES ('schema_version', '${SCHE
 
 export interface Provenance {
   session_id: string;
-  source: "agent" | "human" | "auto";
+  source: "agent" | "human" | "auto" | "tool";
   note?: string;
 }
 
