@@ -10,6 +10,9 @@ import { buildPathTree } from "./fs/path-tree.js";
 import { loadCachedTree, saveCachedTree } from "./cache/disk-cache.js";
 import { InMemorySearchIndex, ChromaSearchIndex } from "./chroma/chroma-backend.js";
 import { setupMemory, type MemorySetup } from "./memory/setup.js";
+import { AsyncIndexer } from "./memory/async-indexer.js";
+import { makeJanitorCommand } from "./commands/janitor-cmd.js";
+import { makeDensityCommand } from "./commands/density.js";
 
 export interface DocsVFSOptions {
   /** Path to the documentation root folder */
@@ -34,6 +37,10 @@ export interface DocsVFSOptions {
   memoryDbUrl?: string;
   /** Session id tagged on every write's provenance (default: random UUID) */
   sessionId?: string;
+  /** Async indexer batch size (default 32). Only used when memory && chroma. */
+  indexerBatchSize?: number;
+  /** Async indexer poll interval in ms (default 250). Only used when memory && chroma. */
+  indexerPollMs?: number;
 }
 
 export interface DocsVFSInstance {
@@ -45,6 +52,8 @@ export interface DocsVFSInstance {
   searchIndex: InMemorySearchIndex | ChromaSearchIndex;
   /** Memory setup when enabled (libSQL client + writable mounts) */
   memory?: MemorySetup;
+  /** Async indexer when memory+chroma are both enabled */
+  indexer?: AsyncIndexer;
   /** Execute a bash command */
   exec: (command: string) => Promise<{ stdout: string; stderr: string; exitCode: number }>;
   /** Summary stats */
@@ -128,6 +137,7 @@ export async function createDocsVFS(
       rootDir,
       dbUrl: options.memoryDbUrl,
       sessionId: options.sessionId,
+      indexerEnabled: !!options.chroma,
     });
     const mountable = new MountableFs({ base: new InMemoryFs() });
     mountable.mount("/docs", docsFs);
@@ -139,9 +149,27 @@ export async function createDocsVFS(
     initialCwd = "/docs";
   }
 
+  // Step 4b: if both memory AND chroma are on, spin up the async indexer.
+  let indexer: AsyncIndexer | undefined;
+  if (options.memory && options.chroma && memory && searchIndex instanceof ChromaSearchIndex) {
+    indexer = new AsyncIndexer({
+      client: memory.client,
+      sink: searchIndex,
+      batchSize: options.indexerBatchSize,
+      pollMs: options.indexerPollMs,
+    });
+    indexer.start();
+  }
+
+  const customCommands = [
+    makeDensityCommand(),
+    ...(memory ? [makeJanitorCommand(memory.client)] : []),
+  ];
+
   const bash = new Bash({
     fs: rootFs,
     cwd: initialCwd,
+    customCommands,
     env: {
       HOME: "/",
       USER: "docsvfs",
@@ -159,6 +187,7 @@ export async function createDocsVFS(
     fs: docsFs,
     searchIndex,
     memory,
+    indexer,
     exec: async (command: string) => {
       try {
         const result = await bash.exec(command);
@@ -183,6 +212,7 @@ export async function createDocsVFS(
       memoryMounts: memoryMounts.length ? memoryMounts : undefined,
     },
     close: async () => {
+      if (indexer) await indexer.stop();
       memory?.close();
     },
   };

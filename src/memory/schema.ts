@@ -37,6 +37,18 @@ CREATE INDEX IF NOT EXISTS idx_nodes_parent   ON nodes(parent);
 CREATE INDEX IF NOT EXISTS idx_nodes_mount    ON nodes(mount);
 CREATE INDEX IF NOT EXISTS idx_nodes_ttl      ON nodes(ttl_expires_at) WHERE ttl_expires_at IS NOT NULL;
 
+CREATE TABLE IF NOT EXISTS index_queue (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  mount         TEXT NOT NULL,
+  path          TEXT NOT NULL,
+  op            TEXT NOT NULL CHECK (op IN ('upsert','delete')),
+  enqueued_at   INTEGER NOT NULL,
+  attempts      INTEGER NOT NULL DEFAULT 0,
+  last_error    TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_queue_enqueued ON index_queue(enqueued_at);
+CREATE INDEX IF NOT EXISTS idx_queue_mount_path ON index_queue(mount, path);
+
 INSERT OR IGNORE INTO schema_meta (key, value) VALUES ('schema_version', '${SCHEMA_VERSION}');
 `;
 

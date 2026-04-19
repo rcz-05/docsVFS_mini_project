@@ -36,6 +36,7 @@ interface ReadFileOptions { encoding?: BufferEncoding | null }
 interface WriteFileOptions { encoding?: BufferEncoding }
 import { FreshMap } from "./fresh-map.js";
 import type { Provenance } from "./schema.js";
+import type { IndexerHook } from "./async-indexer.js";
 
 class FsError extends Error {
   constructor(public code: string, op: string, filePath: string, msg: string) {
@@ -74,6 +75,8 @@ export interface WritableFileSystemOptions {
   sessionId: string;
   /** Shared fresh-map (scoped to this mount) */
   fresh?: FreshMap;
+  /** Optional: queue writes for async Chroma indexing. */
+  indexer?: IndexerHook;
 }
 
 export class WritableFileSystem implements IFileSystem {
@@ -82,6 +85,7 @@ export class WritableFileSystem implements IFileSystem {
   private defaultTtlMs: number | null;
   private sessionId: string;
   private fresh: FreshMap;
+  private indexer: IndexerHook | undefined;
 
   constructor(opts: WritableFileSystemOptions) {
     this.client = opts.client;
@@ -89,6 +93,7 @@ export class WritableFileSystem implements IFileSystem {
     this.defaultTtlMs = opts.defaultTtlMs ?? null;
     this.sessionId = opts.sessionId;
     this.fresh = opts.fresh ?? new FreshMap();
+    this.indexer = opts.indexer;
   }
 
   /** Ensure the root directory row exists for this mount. */
@@ -353,6 +358,7 @@ export class WritableFileSystem implements IFileSystem {
     });
 
     this.fresh.set(p, { kind: "file", content: buf });
+    if (this.indexer) await this.indexer.enqueueUpsert(this.mount, p);
   }
 
   async appendFile(
@@ -441,6 +447,7 @@ export class WritableFileSystem implements IFileSystem {
       });
     }
     this.fresh.set(p, { kind: "tombstone", content: null });
+    if (this.indexer) await this.indexer.enqueueDelete(this.mount, p);
   }
 
   async cp(src: string, dest: string, options?: CpOptions): Promise<void> {

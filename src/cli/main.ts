@@ -9,7 +9,10 @@
  */
 
 import { createInterface } from "node:readline";
+import * as path from "node:path";
+import { createClient } from "@libsql/client";
 import { createDocsVFS } from "../create.js";
+import { runJanitor, formatJanitorReport, type JanitorOptions } from "../memory/janitor.js";
 
 // ─── Argument parsing (minimal, no dep needed) ─────────────────
 
@@ -54,8 +57,9 @@ function printHelp() {
 docsvfs — A ChromaFS-inspired virtual filesystem for documentation.
 
 USAGE
-  docsvfs <folder>            Start a bash REPL over your docs
-  docsvfs <folder> --chroma   Enable Chroma-backed semantic search
+  docsvfs <folder>                      Start a bash REPL over your docs
+  docsvfs <folder> --chroma             Enable Chroma-backed semantic search
+  docsvfs janitor <folder> [flags]      Clean up the writable layer
 
 OPTIONS
   --chroma          Enable Chroma integration (requires running Chroma server)
@@ -83,7 +87,73 @@ COMMANDS (once inside the REPL)
 
 // ─── REPL ──────────────────────────────────────────────────────
 
+async function runJanitorCli(argv: string[]): Promise<number> {
+  // argv starts at the token after "janitor"
+  const opts: JanitorOptions = {};
+  let rootDir = ".";
+  let dbUrl: string | undefined;
+
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === "--dry-run") opts.dryRun = true;
+    else if (a === "--aggressive") opts.aggressive = true;
+    else if (a === "--compact") { /* default */ }
+    else if (a === "--older-than-days" && i + 1 < argv.length) {
+      const days = Number(argv[++i]);
+      if (!Number.isFinite(days) || days <= 0) {
+        console.error("janitor: --older-than-days expects a positive number");
+        return 2;
+      }
+      opts.olderThanMs = days * 24 * 60 * 60 * 1000;
+    } else if (a === "--memory-db" && i + 1 < argv.length) {
+      dbUrl = argv[++i];
+    } else if (a === "--help" || a === "-h") {
+      console.log(JANITOR_HELP);
+      return 0;
+    } else if (!a.startsWith("-")) {
+      rootDir = a;
+    } else {
+      console.error(`janitor: unknown argument "${a}"`);
+      return 2;
+    }
+  }
+
+  const resolvedUrl = dbUrl ?? `file:${path.resolve(rootDir, ".docsvfs.db")}`;
+  const client = createClient({ url: resolvedUrl });
+  try {
+    const report = await runJanitor(client, opts);
+    console.log(formatJanitorReport(report));
+    return 0;
+  } catch (err) {
+    console.error(`janitor: ${(err as Error).message}`);
+    return 1;
+  } finally {
+    client.close();
+  }
+}
+
+const JANITOR_HELP = `Usage: docsvfs janitor <folder> [flags]
+
+Cleans up the writable layer for a DocsVFS root. The folder must be the same
+one you pass to \`docsvfs <folder> --memory\` — the janitor looks for
+<folder>/.docsvfs.db unless --memory-db is given.
+
+Flags:
+  --dry-run                Report only; make no changes
+  --aggressive             Also delete flagged stale agent-only writes
+  --older-than-days N      Stale threshold (default 1 day)
+  --memory-db URL          libSQL URL (default: file:<folder>/.docsvfs.db)
+  -h, --help               Show this help
+`;
+
 async function main() {
+  // Subcommand dispatch: first non-flag arg decides.
+  const raw = process.argv.slice(2);
+  if (raw[0] === "janitor") {
+    const code = await runJanitorCli(raw.slice(1));
+    process.exit(code);
+  }
+
   const { rootDir, chroma, chromaUrl, noCache, memory, memoryDbUrl } = parseArgs(process.argv);
 
   console.log(`\x1b[36m📁 docsvfs\x1b[0m — Virtual filesystem for documentation`);

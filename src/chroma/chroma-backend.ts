@@ -224,6 +224,46 @@ export class ChromaSearchIndex {
     return Array.from(files);
   }
 
+  /**
+   * Upsert all chunks for a single (mount, path). Used by the async indexer
+   * to keep Chroma in sync with writable mounts. Deletes existing chunks for
+   * that (mount, path) first so chunk_index doesn't accumulate stale entries.
+   */
+  async upsertChunks(
+    mount: string,
+    mountRelPath: string,
+    content: string,
+    provenanceSource?: string
+  ): Promise<void> {
+    if (!this.collection) await this.init();
+    await this.deleteChunks(mount, mountRelPath);
+    const chunks = chunkDocument(`${mount}${mountRelPath}`, content);
+    if (chunks.length === 0) return;
+    const ids = chunks.map((c) => `${c.filePath}::${c.chunkIndex}`);
+    const documents = chunks.map((c) => c.content);
+    const metadatas = chunks.map((c) => ({
+      page_slug: c.filePath,
+      source: "writable" as const,
+      mount,
+      path: mountRelPath,
+      chunk_index: c.chunkIndex,
+      provenance_source: provenanceSource ?? "agent",
+    }));
+    await this.collection.upsert({ ids, documents, metadatas });
+  }
+
+  /** Delete every chunk for a (mount, path). Safe if nothing exists. */
+  async deleteChunks(mount: string, mountRelPath: string): Promise<void> {
+    if (!this.collection) await this.init();
+    try {
+      await this.collection.delete({
+        where: { $and: [{ mount: { $eq: mount } }, { path: { $eq: mountRelPath } }] },
+      });
+    } catch {
+      // collection may be empty or filter may not match — non-fatal
+    }
+  }
+
   /** Semantic search using vector similarity */
   async semanticSearch(query: string, nResults: number = 10): Promise<string[]> {
     if (!this.collection) return [];

@@ -102,13 +102,75 @@ npx docsvfs ./docs --chroma
 
 This mirrors ChromaFS's coarse-to-fine filtering: `grep` queries Chroma's `$contains` first, then runs regex in-memory on matching files only.
 
+## Writable Mounts (Phase 2)
+
+Pass `--memory` to mount two writable filesystems alongside read-only `/docs`:
+
+```bash
+npx docsvfs ./docs --memory
+```
+
+```
+/docs        read-only (EROFS on writes)   ←   your documentation
+/memory      persistent                    ←   notes that survive across sessions
+/workspace   24h TTL                       ←   scratch that garbage-collects itself
+```
+
+Every write records provenance (`session_id`, `source: "agent"|"human"|"auto"`) so you can audit or prune later. State is stored in `<folder>/.docsvfs.db` (libSQL).
+
+### Janitor
+
+Clean up the writable layer with provenance-aware rules:
+
+```bash
+# Inside the REPL:
+docsvfs:/docs$ janitor --dry-run         # report only
+docsvfs:/docs$ janitor                   # prune expired + dedup + flag + VACUUM
+docsvfs:/docs$ janitor --aggressive      # also delete flagged stale agent-only writes
+
+# Or standalone:
+npx docsvfs janitor ./docs --dry-run
+```
+
+- **Prune**: TTL-expired rows under `/workspace`
+- **Dedup**: exact SHA-256 match within a mount — keeps the oldest, drops copies
+- **Flag**: agent-only writes older than 24h with no subsequent edits
+  (hallucinated notes that were never confirmed)
+- **VACUUM**: reclaim space
+
+### Density
+
+Rank files by occurrence count of a term — faster than re-reading grep output:
+
+```bash
+docsvfs:/docs$ density /docs Slurm -i
+density for "Slurm" in /docs — 8 file(s), 64 total match(es)
+
+  /docs/PACE_SLURM_PHOENIX.md          32  ████████████████████████
+  /docs/PACE_SLURM_ICE.md              13  █████████
+  /docs/SOC127_EXECUTION.md             9  ██
+  ...
+
+→ /docs/PACE_SLURM_PHOENIX.md dominates. Try: cat /docs/PACE_SLURM_PHOENIX.md
+```
+
+Density works across all mounts — `density / myterm` covers `/docs`, `/memory`, and `/workspace` in one pass.
+
+### Async Chroma indexing
+
+When `--memory` and `--chroma` are both on, every write to `/memory` or `/workspace` is enqueued (durably, in SQLite) for background embedding into Chroma. On the next boot, semantic search and grep span your notes as well as the source docs. Failed rows stay in the queue and are surfaced by the janitor once they hit 5 attempts.
+
 ## CLI Options
 
 ```
 docsvfs <folder>              Start REPL over docs
 docsvfs <folder> --chroma     Enable Chroma backend
 docsvfs <folder> --chroma-url URL   Custom Chroma URL
+docsvfs <folder> --memory     Mount writable /memory and /workspace
+docsvfs <folder> --memory-db URL    Override libSQL URL
 docsvfs <folder> --no-cache   Skip disk cache
+
+docsvfs janitor <folder> [--dry-run|--aggressive|--older-than-days N]
 ```
 
 ## How It Works

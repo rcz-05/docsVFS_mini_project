@@ -15,6 +15,7 @@ import { createClient, type Client } from "@libsql/client";
 import { SCHEMA_SQL } from "./schema.js";
 import { FreshMap } from "./fresh-map.js";
 import { WritableFileSystem } from "./writable-fs.js";
+import { IndexerHook } from "./async-indexer.js";
 
 export interface MemorySetupOptions {
   /** Where to store the SQLite file. Defaults to <rootDir>/.docsvfs.db */
@@ -23,12 +24,15 @@ export interface MemorySetupOptions {
   sessionId?: string;
   /** Override the root the db file lives under when dbUrl is not set */
   rootDir: string;
+  /** When true, writes are enqueued for async Chroma indexing. */
+  indexerEnabled?: boolean;
 }
 
 export interface MemorySetup {
   client: Client;
   sessionId: string;
   mounts: { mountPoint: string; filesystem: WritableFileSystem }[];
+  indexerHook?: IndexerHook;
   close: () => void;
 }
 
@@ -46,6 +50,8 @@ export async function setupMemory(opts: MemorySetupOptions): Promise<MemorySetup
     await client.execute(stmt);
   }
 
+  const indexerHook = opts.indexerEnabled ? new IndexerHook(client) : undefined;
+
   const mounts: MemorySetup["mounts"] = [];
   for (const { mountPoint, defaultTtlMs } of MOUNTS) {
     const fresh = new FreshMap();
@@ -55,6 +61,7 @@ export async function setupMemory(opts: MemorySetupOptions): Promise<MemorySetup
       defaultTtlMs,
       sessionId,
       fresh,
+      indexer: indexerHook,
     });
     await fs.init();
     mounts.push({ mountPoint, filesystem: fs });
@@ -64,6 +71,7 @@ export async function setupMemory(opts: MemorySetupOptions): Promise<MemorySetup
     client,
     sessionId,
     mounts,
+    indexerHook,
     close: () => client.close(),
   };
 }

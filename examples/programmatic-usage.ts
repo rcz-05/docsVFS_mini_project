@@ -31,3 +31,24 @@ console.log(`Total docs: ${count.stdout.trim()}`);
 // 5. Write protection — structurally impossible
 const write = await vfs.exec('echo "hack" > /test.txt');
 console.log(`Write attempt: ${write.stderr}`); // EROFS: read-only file system
+
+// ─── Phase 2: writable memory + density + janitor ──────────────────
+// Pass `memory: true` to mount /memory (persistent) and /workspace (24h TTL)
+// alongside read-only /docs. Writes are tagged with provenance so you can
+// prune stale/hallucinated notes later.
+const memVfs = await createDocsVFS({ rootDir: "./demo-docs", memory: true });
+
+// 6. Persistent notes survive across sessions
+await memVfs.exec(`echo "webhook retry window is 24h" > /memory/api-notes.md`);
+const note = await memVfs.exec("cat /memory/api-notes.md");
+console.log(note.stdout);
+
+// 7. Density: rank files by occurrence of a term — ASCII bars + drill-in hint
+const dens = await memVfs.exec('density /docs webhook -i --top 3');
+console.log(dens.stdout);
+
+// 8. Janitor: dry-run report of what would be cleaned up
+const janitor = await memVfs.exec("janitor --dry-run");
+console.log(janitor.stdout);
+
+await memVfs.close();

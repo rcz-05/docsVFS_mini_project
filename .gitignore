@@ -2,4 +2,12 @@ node_modules/
 dist/
 .DS_Store
 *.tgz
-chroma/
+/chroma/
+
+# DocsVFS generated state
+.docsvfs.db
+.docsvfs.db-journal
+**/.docsvfs.db
+**/.docsvfs.db-journal
+.tmp-smoke-*.db
+.tmp-smoke-*.db-journal
