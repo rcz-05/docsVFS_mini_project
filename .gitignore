@@ -11,3 +11,6 @@ dist/
 **/.docsvfs.db-journal
 .tmp-smoke-*.db
 .tmp-smoke-*.db-journal
+
+# Local Claude session state (not project code)
+.claude/
