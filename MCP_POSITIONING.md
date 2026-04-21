@@ -11,7 +11,7 @@ Rule: any change to the shipped MCP surface (new tool, renamed tool, changed JSO
 Status markers used below — keep them honest; advancing one requires an evidence link:
 
 - Claims: `claim` → `partially-evidenced` → `evidenced`
-- Tools: `proposed` → `implemented` → `shipped`
+- Tools: `proposed` → `specced` → `implemented` → `shipped`
 - Distribution: `not-started` → `submitted` → `live` → `rejected`
 - Testing layers: `designed` → `running` → `published`
 
@@ -63,10 +63,12 @@ Target: **4 tools**, with explicit rationale for what we did *not* expose. Each 
 
 | Tool | Purpose | Status |
 |---|---|---|
-| `docs` | Bash command over the VFS. One entry point for `ls`, `cat`, `grep`, `find`, `tree`, `head`, `tail`, `wc`, pipes, redirects. Returns stdout/stderr/exitCode. | `proposed` |
-| `remember` | Structured write to `/memory/<slug>.md` with overwrite/append mode and optional provenance note. Tagged `source: "tool"`. | `proposed` |
-| `density` | Term-frequency ranking across a path. Returns ranked files + ASCII bars + a drill-in suggestion. | `proposed` |
-| `stats` | Lightweight introspection — file counts per mount, boot time, index state, last-write timestamps. No bash overhead. | `proposed` |
+| `docs` | Bash command over the VFS. One entry point for `ls`, `cat`, `grep`, `find`, `tree`, `head`, `tail`, `wc`, pipes, redirects. Returns stdout/stderr/exitCode. | `specced` |
+| `remember` | Structured write to `/memory/<slug>.md` with overwrite/append mode and optional provenance note. Tagged `source: "tool"`. | `specced` |
+| `density` | Term-frequency ranking across a path. Returns ranked files + ASCII bars + a drill-in suggestion. | `specced` |
+| `stats` | Lightweight introspection — file counts per mount, boot time, index state, last-write timestamps. No bash overhead. | `specced` |
+
+All four schemas locked on paper in [`MCP_TOOL_SCHEMAS.md`](MCP_TOOL_SCHEMAS.md) (2026-04-21). Advancement to `implemented` requires server code matching the locked schemas and a passing MCP Inspector transcript.
 
 **Not exposed as MCP tools (and why):**
 
@@ -163,6 +165,11 @@ YYYY-MM-DD — <commit sha or "uncommitted"> — <one-line summary>
 
 ---
 
-- **2026-04-19 — uncommitted — initial draft**
+- **2026-04-19 — 1780f07 — initial draft**
   - **Why:** set the positioning contract before writing the MCP server. The Ollama 3-session run on the same date showed small-local-model tool-call drift collapsing `/memory` persistence; the fix isn't more prompt engineering, it's shipping the product on the wire format its users actually speak.
   - **Evidence:** [`examples/DEMO_RUNS.md` entry 2026-04-19](examples/DEMO_RUNS.md), [auto-memory `ollama_tool_calls.md`](.claude/projects/-Users-rayancastillazouine-Documents-Claude-Projects-DocsVFS/memory/ollama_tool_calls.md). All §3 tools start at `proposed`, all §4 channels at `not-started`, all §5 layers at `designed`.
+
+- **2026-04-21 — uncommitted — lock 4 tool schemas on paper; introduce `specced` lifecycle state**
+  - **Why:** step 2 of the post-Ollama sequence — decide the wire surface deliberately before accreting it from code. Prevents late-stage backpedaling on tool names, arg shapes, and security invariants once implementation starts. A locked contract also lets README + Smithery + `server.json` copy be drafted in parallel with the server implementation instead of after it.
+  - **Evidence:** [`MCP_TOOL_SCHEMAS.md`](MCP_TOOL_SCHEMAS.md) — 4 tools (`docs`, `remember`, `density`, `stats`), protocol baseline (stdio-only v1, `tools` capability only, MCP spec 2025-06-18+), unified error convention (`isError: true` is structural only — agent-recoverable errors stay `isError: false`), size caps table, per-startup-flag availability matrix, and a non-goals list preventing future surface bloat.
+  - **Changes to this file:** §0 tool lifecycle gains `specced` state between `proposed` and `implemented`; §3 table advances all 4 tools from `proposed` to `specced` and links to the schemas doc.
