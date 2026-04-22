@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "/\n|-- docs\n|   |-- api-reference\n|   |-- architecture\n|   `-- guides\n|-- memory\n`-- workspace\n\n6 directories, 0 files\n"
+    }
+  ],
+  "isError": false
+}

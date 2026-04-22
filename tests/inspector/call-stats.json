@@ -1,0 +1,42 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "docsvfs — booted 2026-04-22T00:40:30.972Z (8ms)\n  /docs          7 files,   4 dirs,      0 B, [r], last write: —\n  /memory        1 files,   1 dirs,     50 B, [w], last write: 2026-04-22T00:40:29.151Z\n  /workspace     0 files,   1 dirs,      0 B, [w], last write: —, ttl 24h\nchunk index: 41 chunks (in-memory)"
+    }
+  ],
+  "structuredContent": {
+    "bootedAt": "2026-04-22T00:40:30.972Z",
+    "bootTimeMs": 8,
+    "chunkCount": 41,
+    "chunkBackend": "in-memory",
+    "mounts": [
+      {
+        "mount": "/docs",
+        "fileCount": 7,
+        "dirCount": 4,
+        "totalBytes": 0,
+        "lastWriteAt": null,
+        "writable": false
+      },
+      {
+        "mount": "/memory",
+        "fileCount": 1,
+        "dirCount": 1,
+        "totalBytes": 50,
+        "lastWriteAt": "2026-04-22T00:40:29.151Z",
+        "writable": true
+      },
+      {
+        "mount": "/workspace",
+        "fileCount": 0,
+        "dirCount": 1,
+        "totalBytes": 0,
+        "lastWriteAt": null,
+        "writable": true,
+        "ttlHours": 24
+      }
+    ]
+  },
+  "isError": false
+}

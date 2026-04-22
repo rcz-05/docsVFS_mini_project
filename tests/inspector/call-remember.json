@@ -1,0 +1,15 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"ok\":true,\"path\":\"/memory/inspector-validation.md\",\"bytes\":50,\"mode\":\"overwrite\"}"
+    }
+  ],
+  "structuredContent": {
+    "ok": true,
+    "path": "/memory/inspector-validation.md",
+    "bytes": 50,
+    "mode": "overwrite"
+  },
+  "isError": false
+}

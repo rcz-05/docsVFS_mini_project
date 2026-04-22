@@ -1,0 +1,39 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "density for \"API\" in /docs — 5 file(s), 22 total match(es), 7 scanned in 1ms\n\n  /docs/architecture/system-overview.md     8  ████████████████████████\n  /docs/guides/getting-started.md           7  █████████████████████\n  /docs/guides/error-handling.md            4  ████████████\n  /docs/api-reference/overview.md           2  ██████\n  /docs/api-reference/transactions.md       1  ███\n\n→ Try: grep -n \"API\" /docs/architecture/system-overview.md"
+    }
+  ],
+  "structuredContent": {
+    "term": "API",
+    "path": "/docs",
+    "totalFiles": 5,
+    "totalMatches": 22,
+    "rows": [
+      {
+        "path": "/docs/architecture/system-overview.md",
+        "count": 8
+      },
+      {
+        "path": "/docs/guides/getting-started.md",
+        "count": 7
+      },
+      {
+        "path": "/docs/guides/error-handling.md",
+        "count": 4
+      },
+      {
+        "path": "/docs/api-reference/overview.md",
+        "count": 2
+      },
+      {
+        "path": "/docs/api-reference/transactions.md",
+        "count": 1
+      }
+    ],
+    "suggestion": "grep -n \"API\" /docs/architecture/system-overview.md",
+    "elapsedMs": 1
+  },
+  "isError": false
+}
