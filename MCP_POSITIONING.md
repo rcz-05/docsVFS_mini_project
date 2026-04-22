@@ -1,6 +1,6 @@
 # MCP Positioning — DocsVFS
 
-> **Status:** initial draft, 2026-04-19. First public MCP release has not shipped.
+> **Status:** 2026-04-21 — 4 MCP tools `implemented` locally (smoke + Inspector green); not yet published to a registry.
 
 ## 0. Purpose + maintenance contract
 
@@ -51,7 +51,7 @@ The existing library + CLI stay shipped. They're the shared core that the MCP se
 
 - **C1 — Unix primitives the agent already knows.** `ls`, `cd`, `cat`, `grep`, `find`, `tree`, `head`, `tail`, `wc` — zero new vocabulary. Every other doc-MCP invents its own query surface. **Status:** `claim`. Evidence target: Layer B qualitative runs across three clients on the same goal set.
 - **C2 — Writable `/memory` + `/workspace` mounts with provenance.** `session_id` + `source` (`agent` / `tool` / `human`) tagged on every write; janitor-safe; TTL on `/workspace`. No other docs MCP persists agent-authored notes across sessions. **Status:** `claim`. Evidence target: a multi-session Claude Code run where S2 provably reads S1's notes and builds on them.
-- **C3 — Security-first.** Read-only `/docs` by default (EROFS on writes), explicit `/memory` write mount, no shell-exec escape into the host, single-process SQLite (no distributed concurrency attack surface). Relevant given CVE-2025-49596 (MCP Inspector RCE) and the April 2026 zero-click Claude DXT flaw. **Status:** `claim`. Evidence target: a written threat model + an Inspector clean-pass transcript.
+- **C3 — Security-first.** Read-only `/docs` by default (EROFS on writes), explicit `/memory` write mount, no shell-exec escape into the host, single-process SQLite (no distributed concurrency attack surface). Relevant given CVE-2025-49596 (MCP Inspector RCE) and the April 2026 zero-click Claude DXT flaw. **Status:** `partially-evidenced`. Evidence to date: clean MCP Inspector transcripts in [`tests/inspector/`](tests/inspector/) showing well-formed schemas and no transport-layer surprises; smoke test confirming EROFS behavior on `/docs` and slug-escape collapse on `remember`. Still outstanding: a written threat model and Layer-B runs showing real-client behavior under adversarial inputs.
 
 **Tool-count discipline.** Cursor caps ~40 active tools across all servers; agents degrade past ~20. DocsVFS's surface is intentionally small (see §3) — that's an adoption advantage vs. kitchen-sink filesystem servers, not an oversight.
 
@@ -63,12 +63,12 @@ Target: **4 tools**, with explicit rationale for what we did *not* expose. Each 
 
 | Tool | Purpose | Status |
 |---|---|---|
-| `docs` | Bash command over the VFS. One entry point for `ls`, `cat`, `grep`, `find`, `tree`, `head`, `tail`, `wc`, pipes, redirects. Returns stdout/stderr/exitCode. | `specced` |
-| `remember` | Structured write to `/memory/<slug>.md` with overwrite/append mode and optional provenance note. Tagged `source: "tool"`. | `specced` |
-| `density` | Term-frequency ranking across a path. Returns ranked files + ASCII bars + a drill-in suggestion. | `specced` |
-| `stats` | Lightweight introspection — file counts per mount, boot time, index state, last-write timestamps. No bash overhead. | `specced` |
+| `docs` | Bash command over the VFS. One entry point for `ls`, `cat`, `grep`, `find`, `tree`, `head`, `tail`, `wc`, pipes, redirects. Returns stdout/stderr/exitCode. | `implemented` |
+| `remember` | Structured write to `/memory/<slug>.md` with overwrite/append mode and optional provenance note. Tagged `source: "tool"`. Registered only when `--memory` is set. | `implemented` |
+| `density` | Term-frequency ranking across a path. Returns ranked files + ASCII bars + a drill-in suggestion. | `implemented` |
+| `stats` | Lightweight introspection — file counts per mount, boot time, index state, last-write timestamps. No bash overhead. | `implemented` |
 
-All four schemas locked on paper in [`MCP_TOOL_SCHEMAS.md`](MCP_TOOL_SCHEMAS.md) (2026-04-21). Advancement to `implemented` requires server code matching the locked schemas and a passing MCP Inspector transcript.
+All four tools implemented in [`src/mcp/server.ts`](src/mcp/server.ts) + [`src/mcp/bin.ts`](src/mcp/bin.ts), matching the schemas in [`MCP_TOOL_SCHEMAS.md`](MCP_TOOL_SCHEMAS.md). Validated by `scripts/mcp-smoke.mjs` (37/37 assertions across both modes) and the MCP Inspector CLI — transcripts in [`tests/inspector/`](tests/inspector/). Advancement to `shipped` requires registry publication (see §4).
 
 **Not exposed as MCP tools (and why):**
 
@@ -115,7 +115,7 @@ Three independent layers, each shippable as its own artifact. None is the "one t
 **Tool:** [`modelcontextprotocol/inspector`](https://github.com/modelcontextprotocol/inspector).
 **What it proves:** schema validity, error handling, transport compliance, `tools/list` stability.
 **Acceptance:** every tool in §3 passes Inspector with no warnings; a session transcript committed to `tests/inspector/`.
-**Status:** `designed`.
+**Status:** `published`. Transcripts committed 2026-04-21 for all 4 tools against the bundled `demo-docs/` corpus. JSON Schema renders cleanly (draft-07), `structuredContent` validates against declared `outputSchema`, stderr is empty. See [`tests/inspector/README.md`](tests/inspector/README.md). Supplemented by [`scripts/mcp-smoke.mjs`](scripts/mcp-smoke.mjs) — 37/37 assertions, runs both `--memory` and read-only modes.
 
 ### Layer B — Real-agent qualitative (the story)
 **Clients:** Claude Code (CLI), Claude Desktop (UI, validates `.mcpb`), Cursor (IDE, validates the 40-tool-ceiling assumption).
@@ -169,7 +169,17 @@ YYYY-MM-DD — <commit sha or "uncommitted"> — <one-line summary>
   - **Why:** set the positioning contract before writing the MCP server. The Ollama 3-session run on the same date showed small-local-model tool-call drift collapsing `/memory` persistence; the fix isn't more prompt engineering, it's shipping the product on the wire format its users actually speak.
   - **Evidence:** [`examples/DEMO_RUNS.md` entry 2026-04-19](examples/DEMO_RUNS.md), [auto-memory `ollama_tool_calls.md`](.claude/projects/-Users-rayancastillazouine-Documents-Claude-Projects-DocsVFS/memory/ollama_tool_calls.md). All §3 tools start at `proposed`, all §4 channels at `not-started`, all §5 layers at `designed`.
 
-- **2026-04-21 — uncommitted — lock 4 tool schemas on paper; introduce `specced` lifecycle state**
+- **2026-04-21 — eb6001b — lock 4 tool schemas on paper; introduce `specced` lifecycle state**
   - **Why:** step 2 of the post-Ollama sequence — decide the wire surface deliberately before accreting it from code. Prevents late-stage backpedaling on tool names, arg shapes, and security invariants once implementation starts. A locked contract also lets README + Smithery + `server.json` copy be drafted in parallel with the server implementation instead of after it.
   - **Evidence:** [`MCP_TOOL_SCHEMAS.md`](MCP_TOOL_SCHEMAS.md) — 4 tools (`docs`, `remember`, `density`, `stats`), protocol baseline (stdio-only v1, `tools` capability only, MCP spec 2025-06-18+), unified error convention (`isError: true` is structural only — agent-recoverable errors stay `isError: false`), size caps table, per-startup-flag availability matrix, and a non-goals list preventing future surface bloat.
   - **Changes to this file:** §0 tool lifecycle gains `specced` state between `proposed` and `implemented`; §3 table advances all 4 tools from `proposed` to `specced` and links to the schemas doc.
+
+- **2026-04-21 — uncommitted — implement 4 tools; pass Layer A (Inspector + smoke); advance C3 to `partially-evidenced`**
+  - **Why:** step 3 of the post-Ollama sequence — make the locked schemas real. The contract in `MCP_TOOL_SCHEMAS.md` is worthless until a server actually speaks it on stdio. Also: Layer A (MCP correctness) is the gate every downstream step depends on. A server that fails Inspector will fail every real MCP client, so this layer publishes first.
+  - **What shipped:** [`src/mcp/server.ts`](src/mcp/server.ts) (4 tools, zod-backed input/output schemas, `structuredContent` + JSON-text fallback, size-capped responses, stderr-only logging) + [`src/mcp/bin.ts`](src/mcp/bin.ts) (stdio entry, flag parsing, graceful shutdown). `createDocsVFS` gained an `alwaysMountDocs` option so `/docs` is a stable mount point whether `--memory` is on or off — the agent's mental model shouldn't depend on startup flags. New `docsvfs-mcp` bin in `package.json`.
+  - **Evidence:**
+    - [`scripts/mcp-smoke.mjs`](scripts/mcp-smoke.mjs) — 37/37 JSON-RPC assertions across both modes (`--memory` and read-only).
+    - [`tests/inspector/`](tests/inspector/) — `tools/list` plus four `tools/call` transcripts via `@modelcontextprotocol/inspector --cli`. JSON Schema renders to draft-07 cleanly, no warnings.
+    - §5 Layer A advances `designed → published`; C3 in §2 advances `claim → partially-evidenced` (EROFS/slug-escape behavior confirmed; threat model and adversarial Layer-B still outstanding).
+    - §3 table: all 4 tools advance `specced → implemented`.
+  - **Not yet shipped:** Layer B (real-client runs on Claude Desktop/Code/Cursor) is blocked on human action — server needs wiring into each client's config. All §4 distribution channels still `not-started`.
