@@ -41,6 +41,13 @@ export interface DocsVFSOptions {
   indexerBatchSize?: number;
   /** Async indexer poll interval in ms (default 250). Only used when memory && chroma. */
   indexerPollMs?: number;
+  /**
+   * Force the doc root to be mounted at `/docs` even when memory is off.
+   * Useful for the MCP server, which advertises a stable mount layout so
+   * the agent's mental model ("docs live at /docs") doesn't depend on
+   * whether memory happens to be enabled.
+   */
+  alwaysMountDocs?: boolean;
 }
 
 export interface DocsVFSInstance {
@@ -126,27 +133,31 @@ export async function createDocsVFS(
     chunkCount = searchIndex.size;
   }
 
-  // Step 4: If memory is enabled, wrap DocsFileSystem + writable mounts in a MountableFs.
+  // Step 4: If memory is enabled OR alwaysMountDocs is set, wrap DocsFileSystem
+  // + writable mounts in a MountableFs with docs at /docs.
   let rootFs: DocsFileSystem | MountableFs = docsFs;
   let memory: MemorySetup | undefined;
   let initialCwd = "/";
   const memoryMounts: string[] = [];
 
-  if (options.memory) {
-    memory = await setupMemory({
-      rootDir,
-      dbUrl: options.memoryDbUrl,
-      sessionId: options.sessionId,
-      indexerEnabled: !!options.chroma,
-    });
+  if (options.memory || options.alwaysMountDocs) {
     const mountable = new MountableFs({ base: new InMemoryFs() });
     mountable.mount("/docs", docsFs);
-    for (const { mountPoint, filesystem } of memory.mounts) {
-      mountable.mount(mountPoint, filesystem);
-      memoryMounts.push(mountPoint);
-    }
     rootFs = mountable;
     initialCwd = "/docs";
+
+    if (options.memory) {
+      memory = await setupMemory({
+        rootDir,
+        dbUrl: options.memoryDbUrl,
+        sessionId: options.sessionId,
+        indexerEnabled: !!options.chroma,
+      });
+      for (const { mountPoint, filesystem } of memory.mounts) {
+        mountable.mount(mountPoint, filesystem);
+        memoryMounts.push(mountPoint);
+      }
+    }
   }
 
   // Step 4b: if both memory AND chroma are on, spin up the async indexer.

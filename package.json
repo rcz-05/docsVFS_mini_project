@@ -6,7 +6,8 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "docsvfs": "./dist/cli/main.js"
+    "docsvfs": "./dist/cli/main.js",
+    "docsvfs-mcp": "./dist/mcp/bin.js"
   },
   "exports": {
     ".": {
@@ -20,13 +21,18 @@
     "./remember": {
       "import": "./dist/remember-tool.js",
       "types": "./dist/remember-tool.d.ts"
+    },
+    "./mcp": {
+      "import": "./dist/mcp/server.js",
+      "types": "./dist/mcp/server.d.ts"
     }
   },
   "scripts": {
     "build": "tsc",
-    "postbuild": "chmod +x dist/cli/main.js",
+    "postbuild": "chmod +x dist/cli/main.js dist/mcp/bin.js",
     "dev": "tsc --watch",
     "start": "node dist/cli/main.js",
+    "start:mcp": "node dist/mcp/bin.js",
     "prepublishOnly": "npm run build",
     "lint": "tsc --noEmit"
   },
@@ -37,18 +43,22 @@
     "ai-agents",
     "documentation",
     "cli",
-    "rag"
+    "rag",
+    "mcp",
+    "model-context-protocol"
   ],
   "author": "Rayan Castilla",
   "license": "MIT",
   "dependencies": {
     "@libsql/client": "^0.17.2",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "chalk": "^5.4.0",
     "chromadb": "^1.9.0",
     "chromadb-default-embed": "^2.14.0",
     "commander": "^13.0.0",
     "glob": "^11.0.0",
-    "just-bash": "^2.14.0"
+    "just-bash": "^2.14.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@ai-sdk/openai": "^3.0.52",
