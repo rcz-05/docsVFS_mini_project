@@ -94,11 +94,11 @@ collapse (S2 → S3), janitor vacuous because nothing was written.
 
 **Run date:** 2026-05-10 · **Model:** Opus 4.7 (Adaptive) · **DB:** `~/data-attribution-demo/docs/.docsvfs.db` (default; shared across all 3 chats).
 
-| Session | Goal                  | Steps | `docs` | `remember` | Cited from `/memory` | Cited from `/docs` | Drift? | Verdict |
-|---------|-----------------------|-------|--------|------------|----------------------|--------------------|--------|---------|
-| S1      | Storage layout        | n/a   | ≥6     | **3**      | —                    | **6 distinct**     | **no** | ✓ — write path established; 10,235 B pinned to `/memory` |
-| S2      | Sample stratification | TBD   | TBD    | TBD        | TBD                  | TBD                | TBD    | TBD |
-| S3      | Onboarding runbook    | TBD   | TBD    | TBD        | TBD                  | TBD                | TBD    | TBD |
+| Session | Goal                  | Steps | `docs` | `density` | `remember` | Cited from `/memory` | Cited from `/docs` | Drift? | Verdict |
+|---------|-----------------------|-------|--------|-----------|------------|----------------------|--------------------|--------|---------|
+| S1      | Storage layout        | n/a   | ≥6     | 0         | **3**      | —                    | **6 distinct**     | **no** | ✓ — write path established; 10,235 B pinned to `/memory` |
+| S2      | Sample stratification | n/a   | ~10    | **4**     | **3**      | **3 of 3 S1 notes** (batched `cat`) | **5 distinct** | **no** | ✓ — **C2 read path proven**; chain intact (3 → 6 notes) |
+| S3      | Onboarding runbook    | n/a   | **16** | 0         | **1**      | **6 of 6** (one cat per file) | **4 verified** | **no** | ✓ — **synthesis proven**; 13.1 KB runbook integrating all 6 prior notes + 4 `/docs` files; first `stats` + `sed`/`head` use; chain complete (6 → 7 notes, ~31 KB) |
 
 **Pre-run sanity check (2026-05-10):** `stats` tool returned
 `{bootedAt: 2026-05-10T19:45:36Z, bootTimeMs: 23, chunkCount: 690,
@@ -112,10 +112,46 @@ local-caches storage layers as separate notes (2,883 B + 3,722 B +
 3,630 B = 10,235 B total in `/memory`, all `provenance.source = "tool"`).
 Final answer cited 6 distinct files from `/docs`. Zero tool-call
 drift. Full transcript + the three Request/Response payloads in
-[`evidence/layer-b/claude-desktop/S1.md`](evidence/layer-b/claude-desktop/S1.md);
-DB row dump in [`db-snapshots/after-S1.tsv`](evidence/layer-b/claude-desktop/db-snapshots/after-S1.tsv).
-This is the **C2 write-path** evidence in isolation; S2 will test
-whether a fresh chat can recover and use these notes.
+[`evidence/layer-b/claude-desktop/S1.md`](evidence/layer-b/claude-desktop/S1.md).
+
+**S2 result (2026-05-10):** **The C2 read path is now evidenced.** A
+fresh Claude Desktop chat — no S1 context in its conversation history —
+took `ls -la /memory` as its first substantive action, then issued a
+single batched `cat` of all three S1 notes (`cat
+/memory/dolma3-storage-layer-{local-caches,modal-volumes,r2}.md`),
+then explored `/docs` to add the three working-sample design choices
+(576-bin stratification, flat per-bin ladder with underfill,
+deterministic blake2b priority). Final answer explicitly acknowledged
+the carry-over: *"Prior session had pinned three storage-layer notes
+(R2 canonical, Modal volume cache, local caches) — kept those
+untouched and added three new notes…"*. `/memory` grew from 3 → 6
+notes. Also the **first real-world use of the `density` tool** (4
+calls: `stratif`, `576`, `10000`, `blake2b`) — exercising the full
+4-tool surface, not just `docs` + `remember`. Full transcript +
+tool-call trace + slug-truncation finding in
+[`evidence/layer-b/claude-desktop/S2.md`](evidence/layer-b/claude-desktop/S2.md).
+
+**S3 result (2026-05-10):** **Chain complete. Synthesis proven.** Fresh
+chat opened with a proactive `stats` call (first organic `stats` use
+in any chain), then `ls /memory`, then read all six prior notes one
+at a time, then did targeted page-by-page verification of four
+`/docs` files (`ATTRIBUTION_RUNBOOK.md`, `BERGSON_REFERENCE.md`,
+`TRACSTAR_PIPELINE.md`, `WORKING_SAMPLE_DATA_ACCESS.md`) using
+`head -N`, `sed -n 'X,Yp'`, and targeted `grep -n ... | head`, then
+emitted **one** `remember` call writing a 13.1 KB onboarding runbook
+that integrates: (1) storage layout (R2 / Modal / local), (2)
+recommended starting sample (`sample_500_docs`, with nested-ladder
+rationale), (3) influence-function tooling (Bergson 0.6.0 Mode B,
+TracStar three-phase SLURM topology, full Bergson parameter set).
+Every claim attributed to either a `/memory/<slug>.md` path or a
+specific `/docs/X.md` file. **`/memory` reached 7 notes (~31 KB)**.
+First chain use of `stats`, `head -N`, and `sed -n 'X,Yp'` — all
+four MCP tools now have real-workflow evidence behind them. Notable
+finding: the model read four `/docs` files beyond what `/memory`
+had, because S3's influence-function topic was a gap S1+S2 didn't
+cover. That's *additive memory behavior* — the right hybrid, not a
+failure of C2. Full transcript + thought-process narration in
+[`evidence/layer-b/claude-desktop/S3.md`](evidence/layer-b/claude-desktop/S3.md).
 
 **Artifacts:** [`evidence/layer-b/claude-desktop/`](evidence/layer-b/claude-desktop/) — see the README in that folder for capture protocol.
 
@@ -135,12 +171,42 @@ whether a fresh chat can recover and use these notes.
 
 ## Delta vs Ollama floor
 
-> Filled in after Claude Desktop runs complete. Four headline dimensions:
->
-> 1. **`remember` calls in S1** — floor 0; expected ≥3 from Sonnet/Opus.
-> 2. **Carry-over from S1 → S2** — floor: nothing to carry. Expected: S2 cites filenames or facts that originated in S1 notes.
-> 3. **Synthesis quality in S3** — floor: drifted JSON-as-text, no synthesis. Expected: a complete runbook citing `/memory/<note>.md` + 1-2 lines from `/docs`.
-> 4. **Tool-call drift count** — floor: 2 of 3 sessions exhibited drift. Expected: 0 of 3.
+Headline numbers, baseline vs Claude Desktop (Opus 4.7), measured on the
+same 3-session chain with corpus-matched prompts:
+
+| Dimension                                | Ollama baseline (2026-05-09)              | Claude Desktop (2026-05-10)                                  | Delta              |
+|------------------------------------------|--------------------------------------------|--------------------------------------------------------------|--------------------|
+| `remember` calls in S1                   | **0**                                      | **3**                                                        | +3                 |
+| Total `remember` calls across S1+S2+S3   | **0**                                      | **7** (3 + 3 + 1 synthesis runbook)                          | +7                 |
+| `/memory` bytes persisted post-chain     | **0** B (mount-root inode only)            | **~31,153** B across 7 notes                                 | +31 KB             |
+| Cross-session carry-over (S2)            | None — `/memory` empty, model drifted      | All 3 S1 notes `cat`-ed via fresh-chat `ls /memory` → batched `cat` | full chain         |
+| Synthesis (S3)                           | JSON-as-text drift; no synthesis attempted | 13.1 KB runbook integrating 6 prior notes + 4 `/docs` files | qualitative win    |
+| Tool-call drift count                    | **2 of 3 sessions**                        | **0 of 3 sessions**                                          | -2                 |
+| Tools exercised in real workflow         | `docs` only (and intermittently)           | `docs`, `density` (S2), `remember`, `stats` (S3) — **all 4** | full surface       |
+| Provenance fidelity                      | n/a (nothing written)                      | 7 of 7 rows tagged `source=tool` correctly                   | new evidence       |
+| Janitor C3 substrate                     | Vacuous (nothing to operate on)            | 7 notes / 31 KB of real substrate available                  | unblocked          |
+
+The qualitative story behind these numbers: the local model on the
+2026-05-09 baseline announced *"Now, let's save this information"* in
+prose, then never emitted a structured `remember` call. The MCP-routed
+frontier model on 2026-05-10 announced *"Three notes pinned. Quick
+verification"* and then `ls -la`'d the directory to confirm. Same
+DocsVFS server, same corpus, same three-goal chain. The change is the
+wire format and the model's training to honor it — which is the
+structural fix the 2026-04-21 MCP pivot was predicated on.
+
+**What advances:** C1 + C2 both have full within-client evidence
+(see Status block above for the precise wording). C3 has real
+substrate for the first time — janitor can now flag/dedup/prune
+against 31 KB of agent-authored writes instead of running vacuously.
+
+**What's still ahead:** cross-client replication on Claude Code +
+Cursor (to push C1/C2 from `partially-evidenced` → `evidenced`),
+a real janitor run against the populated DB (for C3), the threat-model
+write-up (also for C3), and then Layer C public benchmark work.
+Distribution channels in §4 of `MCP_POSITIONING.md` are all still
+`not-started`; the within-client Layer B evidence is what unlocks
+the first Smithery / `.mcpb` submissions.
 
 ---
 
@@ -148,9 +214,9 @@ whether a fresh chat can recover and use these notes.
 
 | Claim | Status                | Evidence                                                                  |
 |-------|-----------------------|---------------------------------------------------------------------------|
-| C1    | `partially-evidenced` | Server attaches in Cowork + classic Claude Desktop; 4 tools register; `stats` round-trips; **S1 emitted 3 structured `remember` calls with zero drift** (Opus 4.7, 2026-05-10). S2/S3 pending. |
-| C2    | `partially-evidenced` | Write path proven (S1 pinned 10.2 KB across 3 notes). Cross-session **read** path pending — S2 must recover S1's notes from a fresh chat. |
-| C3    | `claim`               | `/memory` now has 3 rows, all `source=tool` — janitor finally has substrate to operate on. Will test after the chain completes. |
+| C1    | `partially-evidenced` | **Full 4-tool surface exercised within Claude Desktop:** `docs` (ls/cat batched + tree + head -N + sed -n 'X,Yp' + grep -B -A -i piped to head), `density` (4 coarse-filter calls in S2), `remember` (7 calls across S1+S2+S3, all structured), `stats` (proactive call in S3). Canonical Unix vocabulary exercised: `ls`, `tree`, `cat`, `head`, `sed`, `grep`. Cross-client replication (Claude Code, Cursor) is the remaining hurdle before `evidenced`. |
+| C2    | `partially-evidenced` | **Full chain proven within one client.** Write (S1): 3 structured `remember` calls, 10.2 KB pinned. Read (S2): fresh-chat `ls /memory` first, batched `cat` of all 3 S1 notes, carried forward into final answer + added 3 more. Synthesis (S3): fresh-chat read all 6 prior notes, supplemented with 4 `/docs` files for the new sub-topic (influence-function tooling), produced a 13.1 KB onboarding runbook attributing every claim to source. Cross-client replication would push to `evidenced`. |
+| C3    | `claim`               | **Substrate now real.** `/memory` has 7 rows / ~31 KB, all `source=tool` (provenance recorded correctly across three sessions). Janitor + threat-model write-up still outstanding. Slug truncation at `MAX_SLUG_LEN=60` observed working as designed on 2 of 7 notes. |
 
 ---
 
@@ -159,3 +225,5 @@ whether a fresh chat can recover and use these notes.
 - **2026-05-09** — Ollama baseline run, artifacts published to `evidence/layer-b/baseline-ollama/`.
 - **2026-05-10** — Claude Desktop wired (config patched for nvm-managed node). Pre-run `stats` sanity check passed (boot 23ms, chunkCount 690, all 3 mounts healthy). Corpus-matched goal prompts authored. Folder scaffold ready under `evidence/layer-b/claude-desktop/`.
 - **2026-05-10** — **S1 (storage layout) complete on Opus 4.7.** Three structured `remember` calls landed; `/memory` populated with `dolma3-storage-layer-{r2,modal-volumes,local-caches}.md` totaling 10,235 bytes; final answer cited 6 distinct `/docs` files; zero tool-call drift. C1 strengthened, C2 advanced from `claim` → `partially-evidenced` (write path).
+- **2026-05-10** — **S2 (sample stratification) complete on Opus 4.7. C2 read path evidenced.** Fresh chat opened first action as `ls -la /memory`, then issued a single batched `cat` of all 3 S1 notes, then exercised `density` (4 calls — `stratif`, `576`, `10000`, `blake2b`) as a coarse filter before targeted `cat`/`grep`, then pinned 3 new notes for the working-sample design choices (576-bin stratification, flat per-bin ladder with underfill, deterministic blake2b priority). Final answer explicitly carries the S1 storage notes forward. `/memory` now 6 files. First real-world `density` usage in any demo. Slug-truncation observed (intentional, `MAX_SLUG_LEN=60` in `src/remember-tool.ts`) on two design-choice topic names.
+- **2026-05-10** — **S3 (onboarding runbook) complete on Opus 4.7. Chain complete; synthesis proven.** Fresh chat opened with a proactive `stats` call (first organic `stats` use in any chain), then `ls /memory`, then read all 6 prior notes one at a time, then did page-by-page `head -N`/`sed -n 'X,Yp'` verification of 4 `/docs` files (`ATTRIBUTION_RUNBOOK.md`, `BERGSON_REFERENCE.md`, `TRACSTAR_PIPELINE.md`, `WORKING_SAMPLE_DATA_ACCESS.md`), then emitted **one** `remember` call writing a 13.1 KB onboarding runbook that integrates data locations, recommended starting sample (`sample_500_docs`), and Bergson/TracStar influence-function tooling — with every claim attributed to either a `/memory/<slug>.md` path or a specific `/docs/X.md` file. `/memory` reached 7 notes / ~31 KB. All four MCP tools now have real-workflow evidence. Notable finding: the model read `/docs` files beyond what `/memory` had (because influence-function tooling was a topic gap S1+S2 didn't cover) — that's *additive memory behavior*, the right hybrid. Layer B Claude Desktop chain is functionally complete.
