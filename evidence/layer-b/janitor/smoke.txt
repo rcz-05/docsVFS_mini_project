@@ -1,0 +1,80 @@
+--- dry-run ---
+janitor [dry run] — 2ms
+  expired:    2 would be pruned
+    - /workspace/expired-b.md
+    - /workspace/expired-a.md
+  duplicates: 3 would be merged into 2 canonical
+    - kept /memory/dup-a-keep.md
+        dropped /memory/dup-a-later.md
+    - kept /memory/dup-b-keep.md
+        dropped /memory/dup-b-1.md
+        dropped /memory/dup-b-2.md
+  flagged:    1 stale agent-only writes
+    [review] /memory/stale-note.md  (48h old)
+  ✓ dry-run reports 2 expired
+  ✓ dry-run reports 2 dedup groups
+  ✓ dry-run reports 3 files to merge (1+2)
+  ✓ dry-run reports 1 stale flagged
+  ✓ dry-run flagged not deleted
+  ✓ dry-run did not change the DB
+  ✓ dry-run did NOT vacuum
+
+--- default run ---
+janitor — 6ms, VACUUMed
+  expired:    2 pruned
+    - /workspace/expired-b.md
+    - /workspace/expired-a.md
+  duplicates: 3 merged into 2 canonical
+    - kept /memory/dup-a-keep.md
+        dropped /memory/dup-a-later.md
+    - kept /memory/dup-b-keep.md
+        dropped /memory/dup-b-1.md
+        dropped /memory/dup-b-2.md
+  flagged:    1 stale agent-only writes
+    [review] /memory/stale-note.md  (48h old)
+  ✓ expired rows deleted (-2)
+  ✓ alive workspace row kept
+  ✓ dedup dropped 3 rows
+  ✓ dup-a oldest kept
+  ✓ dup-a later removed
+  ✓ dup-b oldest kept
+  ✓ dup-b dupes removed
+  ✓ stale agent flagged (not deleted)
+  ✓ stale-note still present
+  ✓ human note not flagged
+  ✓ revisited not flagged
+  ✓ fresh note not flagged
+  ✓ VACUUM ran
+
+--- aggressive ---
+janitor — 7ms, VACUUMed
+  expired:    2 pruned
+    - /workspace/expired-b.md
+    - /workspace/expired-a.md
+  duplicates: 3 merged into 2 canonical
+    - kept /memory/dup-a-keep.md
+        dropped /memory/dup-a-later.md
+    - kept /memory/dup-b-keep.md
+        dropped /memory/dup-b-1.md
+        dropped /memory/dup-b-2.md
+  flagged:    1 stale agent-only writes
+    [deleted] /memory/stale-note.md  (48h old)
+  ✓ stale flagged AND deleted
+  ✓ stale-note removed from DB
+  ✓ human note preserved
+  ✓ revisited preserved (updated_at > created_at)
+  ✓ fresh agent note preserved
+
+--- older-than-days 7 (nothing stale) ---
+  ✓ no stale flagged with 7-day threshold
+  ✓ expired still pruned (TTL is separate)
+  ✓ dedup still runs
+
+--- mounts=['/workspace'] filter ---
+  ✓ only /workspace expired pruned
+  ✓ no /memory dedup when filtered to /workspace
+  ✓ no /memory stale when filtered to /workspace
+  ✓ /memory dup files still present
+
+
+OK

@@ -1,0 +1,4 @@
+janitor [dry run] — 3ms
+  expired:    0
+  duplicates: 0
+  flagged:    0 stale agent-only writes

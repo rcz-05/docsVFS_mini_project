@@ -1,0 +1,4 @@
+janitor — 4ms, VACUUMed
+  expired:    0
+  duplicates: 0
+  flagged:    0 stale agent-only writes

@@ -1,0 +1,30 @@
+# Captured: 2026-05-11, run by Claude inside Linux sandbox against
+# a 3-row source=tool fixture DB at /tmp/fixture-docs/.docsvfs.db.
+# This is NOT the user's real corpus DB — it stands in for it to
+# validate the CLI surface (npx docsvfs janitor) since the sandbox
+# cannot reach ~/data-attribution-demo/docs on the user's Mac.
+#
+# Fixture seed: 3 rows, all source=tool, no TTL, no duplicates.
+# Predicts shape of real-DB run against 7 source=tool rows in user's DB.
+
+================ DRY-RUN ================
+$ npx docsvfs janitor /tmp/fixture-docs --dry-run
+janitor [dry run] — 4ms
+  expired:    0
+  duplicates: 0
+  flagged:    0 stale agent-only writes
+
+================ REAL RUN ================
+$ npx docsvfs janitor /tmp/fixture-docs
+janitor — 4ms, VACUUMed
+  expired:    0
+  duplicates: 0
+  flagged:    0 stale agent-only writes
+
+================ POST-RUN ROW DUMP ================
+/data-attribution-onboarding.md|tool|39
+/dolma3-storage-layer-modal-volumes.md|tool|31
+/dolma3-storage-layer-r2.md|tool|28
+
+All 3 source=tool rows preserved byte-for-byte. VACUUM completed.
+This is the predicted outcome for the user's real-DB run.

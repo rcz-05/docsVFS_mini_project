@@ -155,6 +155,23 @@ failure of C2. Full transcript + thought-process narration in
 
 **Artifacts:** [`evidence/layer-b/claude-desktop/`](evidence/layer-b/claude-desktop/) — see the README in that folder for capture protocol.
 
+**Janitor pass (2026-05-11):** With 7 `source=tool` notes / 31,145 B of
+agent-authored substrate in `/memory` after S3, ran the full janitor
+protocol to evidence C3 (security-first lifecycle). Three captures
+committed under [`evidence/layer-b/janitor/`](evidence/layer-b/janitor/):
+
+- **Smoke (in-process):** [`scripts/smoke-janitor.mjs`](scripts/smoke-janitor.mjs) green in a Linux sandbox — 5/5 scenarios (dry-run, default, aggressive, `--older-than-days 7`, `--mounts` filter), every assertion passes. Capture: [`smoke.txt`](evidence/layer-b/janitor/smoke.txt).
+- **Fixture-CLI:** `npx docsvfs janitor` against a seeded 3-row `source=tool` fixture DB → `0/0/0/VACUUMed`, all rows preserved. Capture: [`fixture-cli.txt`](evidence/layer-b/janitor/fixture-cli.txt).
+- **Real-DB:** dry-run + real run against `~/data-attribution-demo/docs/.docsvfs.db` (the populated Claude Desktop chain DB, 7 rows / ~31 KB) → both reported `0 expired / 0 duplicates / 0 flagged`; real run additionally `VACUUMed`. Captures: [`real-dry-run.txt`](evidence/layer-b/janitor/real-dry-run.txt), [`real-run.txt`](evidence/layer-b/janitor/real-run.txt). Post-run DB snapshot ([`db-snapshots/after-janitor.tsv`](evidence/layer-b/janitor/db-snapshots/after-janitor.tsv)) diffed byte-for-byte against `after-S3.tsv` — **silent diff**.
+
+Why `0/0/0` is the *correct* outcome: `remember` always tags writes
+`provenance.source = "tool"` ([`src/remember-tool.ts:127`](src/remember-tool.ts));
+the janitor's stale-flag path matches only `source = "agent"`
+([`src/memory/janitor.ts:153`](src/memory/janitor.ts)). On a tool-tagged
+real DB the destructive paths have nothing to do — which is the
+security invariant we want. The destructive paths still fire correctly
+on seeded fixtures (smoke covers this).
+
 ---
 
 ## Claude Code
@@ -216,7 +233,7 @@ the first Smithery / `.mcpb` submissions.
 |-------|-----------------------|---------------------------------------------------------------------------|
 | C1    | `partially-evidenced` | **Full 4-tool surface exercised within Claude Desktop:** `docs` (ls/cat batched + tree + head -N + sed -n 'X,Yp' + grep -B -A -i piped to head), `density` (4 coarse-filter calls in S2), `remember` (7 calls across S1+S2+S3, all structured), `stats` (proactive call in S3). Canonical Unix vocabulary exercised: `ls`, `tree`, `cat`, `head`, `sed`, `grep`. Cross-client replication (Claude Code, Cursor) is the remaining hurdle before `evidenced`. |
 | C2    | `partially-evidenced` | **Full chain proven within one client.** Write (S1): 3 structured `remember` calls, 10.2 KB pinned. Read (S2): fresh-chat `ls /memory` first, batched `cat` of all 3 S1 notes, carried forward into final answer + added 3 more. Synthesis (S3): fresh-chat read all 6 prior notes, supplemented with 4 `/docs` files for the new sub-topic (influence-function tooling), produced a 13.1 KB onboarding runbook attributing every claim to source. Cross-client replication would push to `evidenced`. |
-| C3    | `claim`               | **Substrate now real.** `/memory` has 7 rows / ~31 KB, all `source=tool` (provenance recorded correctly across three sessions). Janitor + threat-model write-up still outstanding. Slug truncation at `MAX_SLUG_LEN=60` observed working as designed on 2 of 7 notes. |
+| C3    | `partially-evidenced` | **Janitor lifecycle evidenced (2026-05-11); threat model still outstanding.** Smoke ([`smoke.txt`](evidence/layer-b/janitor/smoke.txt)) — 5/5 scenarios green. Fixture-CLI ([`fixture-cli.txt`](evidence/layer-b/janitor/fixture-cli.txt)) — `0/0/0/VACUUMed` against seeded `source=tool` fixture, all rows preserved. Real-DB ([`real-dry-run.txt`](evidence/layer-b/janitor/real-dry-run.txt), [`real-run.txt`](evidence/layer-b/janitor/real-run.txt)) — `0/0/0/VACUUMed` against the live 7-row 31-KB Claude Desktop DB; post-run snapshot ([`db-snapshots/after-janitor.tsv`](evidence/layer-b/janitor/db-snapshots/after-janitor.tsv)) diffs silently against `after-S3.tsv`, proving the janitor's default behavior preserves `source=tool` writes byte-for-byte. Substrate: 7 rows / ~31 KB. Slug truncation at `MAX_SLUG_LEN=60` observed working as designed on 2 of 7 notes. Outstanding: written threat model + cross-client replication before promoting to `evidenced`. |
 
 ---
 
