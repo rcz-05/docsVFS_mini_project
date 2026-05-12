@@ -207,7 +207,7 @@ on seeded fixtures (smoke covers this).
 
 **Cursor-specific finding — Ask vs Agent:** Cursor's free-plan capacity throttling temporarily blocked Agent-mode chats. User attempted "Ask" mode as a workaround; **Ask mode does NOT execute MCP tool calls** — empirically confirmed before the S2 run. The MCP surface is reachable only through Cursor's agentic modes (`Agent`, `Plan`, `Debug`, `Multitask`), not `Ask`. Adoption-friction observation for rate-limited tiers: if Agent is throttled, the MCP isn't usable until capacity clears.
 
-**Still outstanding for S2:** DB snapshot (`db-snapshots/after-S2.tsv`) not yet captured. Pre-computed expected state in S2.md (6 rows / 6,898 B). Screenshot of S2 `remember` render → not blocking.
+**Still outstanding for S2:** Screenshot of S2 `remember` render → not blocking. DB snapshot captured 2026-05-11; byte-perfect match to the pre-computed prediction (6 rows / 6,898 B).
 
 ---
 
