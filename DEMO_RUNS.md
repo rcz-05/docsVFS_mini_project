@@ -213,26 +213,31 @@ on seeded fixtures (smoke covers this).
 
 **Status implication:** With the full 3-session chain holding on Cursor (write → read → synthesize) and the C2 integration gap from S2 resolved by S3, the conditions for advancing **C1 and C2 from `partially-evidenced` to `evidenced`** are met. See Status block + changelog.
 
-**Still outstanding for S3:** DB snapshot (`db-snapshots/after-S3.tsv`) not yet captured. Pre-computed expected state in S3.md (7 rows / 13,895 B). Screenshot of S3 `remember` render → not blocking.
+**Still outstanding for S3:** Screenshot of S3 `remember` render → not blocking. DB snapshot captured 2026-05-11 — third byte-perfect match in the Cursor chain (7 rows / 13,895 B, exactly matching the pre-computed prediction including the append-mode math: 6,835 overwrite + 162 append = 6,997 B for `data-attribution-onboarding.md`).
 
 ---
 
 ## Delta vs Ollama floor
 
-Headline numbers, baseline vs Claude Desktop (Opus 4.7), measured on the
-same 3-session chain with corpus-matched prompts:
+Headline numbers across the three chains — baseline (local Ollama),
+Claude Desktop (Opus 4.7), Cursor (Free-default Sonnet 4.x-class) —
+measured on the same 3-session corpus-matched prompts:
 
-| Dimension                                | Ollama baseline (2026-05-09)              | Claude Desktop (2026-05-10)                                  | Delta              |
-|------------------------------------------|--------------------------------------------|--------------------------------------------------------------|--------------------|
-| `remember` calls in S1                   | **0**                                      | **3**                                                        | +3                 |
-| Total `remember` calls across S1+S2+S3   | **0**                                      | **7** (3 + 3 + 1 synthesis runbook)                          | +7                 |
-| `/memory` bytes persisted post-chain     | **0** B (mount-root inode only)            | **~31,153** B across 7 notes                                 | +31 KB             |
-| Cross-session carry-over (S2)            | None — `/memory` empty, model drifted      | All 3 S1 notes `cat`-ed via fresh-chat `ls /memory` → batched `cat` | full chain         |
-| Synthesis (S3)                           | JSON-as-text drift; no synthesis attempted | 13.1 KB runbook integrating 6 prior notes + 4 `/docs` files | qualitative win    |
-| Tool-call drift count                    | **2 of 3 sessions**                        | **0 of 3 sessions**                                          | -2                 |
-| Tools exercised in real workflow         | `docs` only (and intermittently)           | `docs`, `density` (S2), `remember`, `stats` (S3) — **all 4** | full surface       |
-| Provenance fidelity                      | n/a (nothing written)                      | 7 of 7 rows tagged `source=tool` correctly                   | new evidence       |
-| Janitor C3 substrate                     | Vacuous (nothing to operate on)            | 7 notes / 31 KB of real substrate available                  | unblocked          |
+| Dimension                                | Ollama baseline (2026-05-09)              | Claude Desktop (2026-05-10)                                  | Cursor (2026-05-11)                                          |
+|------------------------------------------|--------------------------------------------|--------------------------------------------------------------|--------------------------------------------------------------|
+| `remember` calls in S1                   | **0**                                      | **3**                                                        | **3**                                                        |
+| Total `remember` calls across S1+S2+S3   | **0**                                      | **7** (3 + 3 + 1 synthesis runbook)                          | **8** (3 + 3 + 2 — overwrite + first append-mode patch)      |
+| `/memory` bytes persisted post-chain     | **0** B (mount-root inode only)            | **~31,145** B across 7 notes                                 | **13,895** B across 7 notes (~45% of Opus's volume)          |
+| Cross-session carry-over (S2)            | None — `/memory` empty, model drifted      | All 3 S1 notes `cat`-ed via batched `cat`                    | All 3 S1 notes LISTED but not `cat`-read on S2 (gap closed in S3) |
+| Cross-session carry-over (S3)            | n/a                                        | All 6 prior notes read; 4 additive `/docs` reads             | All 6 prior notes `cat`-read; 3 additive `/docs` reads       |
+| Synthesis (S3)                           | JSON-as-text drift; no synthesis attempted | 13.1 KB runbook integrating 6 prior notes + 4 `/docs` files  | 7 KB runbook + first append-mode self-correction; line-range citations |
+| Tool-call drift count                    | **2 of 3 sessions**                        | **0 of 3 sessions**                                          | **0 of 3** (1 self-recovered schema rejection on S1, 1 planning self-correction on S2) |
+| Tools exercised in real workflow         | `docs` only (and intermittently)           | `docs`, `density` (S2 ×4), `remember`, `stats` (S3) — all 4  | `docs`, `remember` (incl. append mode) — `density`/`stats` unused |
+| Built-in pre-flight discoverability cost | n/a (no built-in MCP tools)                | 0 calls                                                       | ~9 / ~5 / ~13 across S1/S2/S3 (Cursor-specific finding)      |
+| Append-mode `remember` usage             | n/a                                        | No                                                           | **Yes — first organic use in any chain** (S3 self-correction) |
+| Provenance fidelity                      | n/a (nothing written)                      | 7 of 7 rows tagged `source=tool` correctly                   | 7 of 7 rows tagged `source=tool` correctly                   |
+| Byte-perfect `remember`-ack vs SQLite    | n/a                                        | Not snapshot-verified mid-chain                              | **3 of 3 sessions** verified byte-for-byte against DB        |
+| Janitor C3 substrate                     | Vacuous (nothing to operate on)            | 7 notes / 31 KB substrate available                          | 7 notes / 14 KB substrate available                          |
 
 The qualitative story behind these numbers: the local model on the
 2026-05-09 baseline announced *"Now, let's save this information"* in
